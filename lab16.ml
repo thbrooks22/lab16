@@ -4,7 +4,7 @@
 *)
 
 (*
-Objective: 
+Objective:
 
   Compare the effectiveness of function-oriented and object-oriented
   programming in various situations. Gain practice implementing
@@ -19,7 +19,7 @@ point.ml. Why?) *)
 open Point ;;
 
 (*====================================================================
-Part 1 - Functional vehicles 
+Part 1 - Functional vehicles
 
 In this part, you will revisit algebraic data types to model some
 vehicles, implementing functionality in a function-oriented approach,
@@ -29,8 +29,8 @@ We start with a vehicle type that can be a Bus, a Car or a Truck, each
 constructed of a point that represents its current x-y position and a
 float that represents the energy stored in the tank (measured in units
 of gallons of gas, a useful unit even for electric vehicles). *)
-  
-type vehicle = 
+
+type vehicle =
   | Bus of point * float
   | Car of point * float
   | Truck of point * float ;;
@@ -41,23 +41,30 @@ returns its efficiency in miles per gallon (mpg). For purposes here,
 buses get 20. mpg, cars get 30. mpg, and trucks get 15. mpg. (Notice
 that these values are floats.)
 ....................................................................*)
-   
-let get_efficiency _ = failwith "get_efficiency not implemented" ;; 
-     
+
+let get_efficiency (v : vehicle) : float =
+  match v with
+  | Bus _ -> 20.
+  | Car _ -> 30.
+  | Truck _ -> 15. ;;
+
 (*....................................................................
 Exercise 2: Write a function get_energy that returns the amount of
 energy a vehicle has available.
 ....................................................................*)
-   
-let get_energy _ = failwith "get_energy not implemented" ;;
 
+let get_energy (v : vehicle) : float =
+  match v with
+  | Bus (_, e) | Car (_, e) | Truck (_, e) -> e ;;
 (*....................................................................
 Exercise 3: Write a function get_pos that returns the x-y position of
 a vehicle as a point.
 ....................................................................*)
-   
-let get_pos _ = failwith "get_pos not implemented" ;;
-     
+
+let get_pos (v : vehicle) : point =
+  match v with
+  | Bus (p, _) | Car (p, _) | Truck (p, _) -> p ;;
+
 (*....................................................................
 Exercise 4: Let's define a function that allows these vehicles to
 travel somewhere. Write a go function that takes a vehicle and a
@@ -74,7 +81,26 @@ return a new vehicle with the updated position and energy. (Calls with
 negative distance should raise an Invalid_argument exception.)
 ....................................................................*)
 
-let go _ = failwith "not implemented" ;;
+let go (v : vehicle)
+       (dist : float)
+       (dir : float)
+       : vehicle =
+      match v with
+      | Bus (pos, energy) ->
+         if (get_energy v) *. (get_efficiency v) < dist
+          then Bus (offset pos ((get_energy v) *. (get_efficiency v)) dir, 0.)
+         else
+          Bus (offset pos dist dir, energy -. (dist /. (get_efficiency v)))
+      | Car (pos, energy) ->
+         if (get_energy v) *. (get_efficiency v) < dist
+          then Car (offset pos ((get_energy v) *. (get_efficiency v)) dir, 0.)
+         else
+          Car (offset pos dist dir, energy -. (dist /. (get_efficiency v)))
+      | Truck (pos, energy) ->
+         if (get_energy v) *. (get_efficiency v) < dist
+          then Car (offset pos ((get_energy v) *. (get_efficiency v)) dir, 0.)
+         else
+          Car (offset pos dist dir, energy -. (dist /. (get_efficiency v))) ;;
 
 (*====================================================================
 Part 2: Object-oriented vehicles
@@ -110,7 +136,7 @@ which takes several arguments:
   capacity -- the maximum amount of energy (in gallons of gas) that
   can be stored in the vehicle's tank/battery
 
-  energy -- the vehicle's initial amount of energy  
+  energy -- the vehicle's initial amount of energy
 
   efficiency -- the vehicle's efficiency in mpg
 
@@ -133,21 +159,21 @@ class vehicle_class (capacity: float)
     val efficiency = efficiency
     val mutable pos = initial_pos
     val mutable odometer = 0.
-                             
+
     (*................................................................
     Exercise 5: To this vehicle class, add methods "get_distance",
     "get_pos", and "get_energy" which return the current distance
     traveled, position, and remaining energy, respectively.
     ................................................................*)
 
-    method get_distance : float = 
-      failwith "get_distance method not implemented"
+    method get_distance : float =
+      odometer
 
-    method get_pos : point = 
-      failwith "get_pos method not implemented"
-         
-    method get_energy : float = 
-      failwith "get_energy method not implemented"
+    method get_pos : point =
+      pos
+
+    method get_energy : float =
+      energy
 
     (*................................................................
     Exercise 6: Now add a method to your vehicle class called "go"
@@ -160,8 +186,17 @@ class vehicle_class (capacity: float)
     it before.
     ................................................................*)
 
-    method go _ = 
-      failwith "go method not implemented"
+    method go (dist : float)
+              (angle : float)
+              : () =
+      if energy < dist /. efficiency then
+        (energy <- 0
+        pos <- offset pos (energy *. efficiency) angle
+        odometer <- odometer +. (energy *. efficiency))
+      else
+        (energy <- energy -. (dist /. efficiency)
+        pos <- offset pos dist angle
+        odometer <- odometer +. dist)
 
     (*................................................................
     Exercise 7: Since we'll eventually run out of energy, it would be
@@ -169,10 +204,10 @@ class vehicle_class (capacity: float)
     method class that resets the energy to whatever the vehicle's
     capacity is.
     ................................................................*)
-   
-    method fill : unit = 
-      failwith "fill method not implemented"
-  end ;; 
+
+    method fill : unit =
+      energy = capacity
+  end ;;
 
 (*====================================================================
 Part 3 Inheritance
@@ -196,9 +231,9 @@ Truck - 150.
 Bus - 200.
 ....................................................................*)
 
-class car (initial_energy : float) (initial_pos : point) = 
+class car (initial_energy : float) (initial_pos : point) =
   object
-    (* implement the car class here *)
+    inherit vehicle_class 100. 30. initial_energy initial_pos
   end ;;
 
 (*....................................................................
@@ -206,10 +241,10 @@ Exercise 9: Now, define a truck class similarly to the car class, but
 with the truck's specifications given in Part 1.
 ....................................................................*)
 
-class truck (initial_energy : float) (initial_pos : point) = 
+class truck (initial_energy : float) (initial_pos : point) =
   object
-    (* implement the truck class here *)
-  end ;; 
+    inherit vehicle_class 150. 15. initial_energy initial_pos
+  end ;;
 
 (*....................................................................
 Exercise 10: Finally, define the bus class. Rather than merely inherit
@@ -234,9 +269,11 @@ Furthermore, when a bus goes in for a fill-up, it will behave as a
 vehicle, but first needs to drop off all its passengers. Override the
 fill method to implement this functionality.
 ....................................................................*)
- 
-class bus (initial_energy : float) (initial_pos : point) (seats : int) = 
+
+class bus (initial_energy : float) (initial_pos : point) (seats : int) =
   object (this)
+    inherit vehicle_class 200. 20. initial_energy initial_pos as super
+
     val mutable passengers = 0
     val seats = seats
 
@@ -244,5 +281,10 @@ class bus (initial_energy : float) (initial_pos : point) (seats : int) =
 
     method get_seats : int = seats
 
-    (* complete the implementation of the bus class here *)
+    method pick_up (p : int) : unit =
+      passengers = min (passengers + p) 50
+
+    method drop_off (p : int) : unit =
+      passengers = max (passengers - p) 0
+
   end ;;
